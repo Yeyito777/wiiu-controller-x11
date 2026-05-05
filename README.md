@@ -13,15 +13,13 @@ This was made for a local Super Mario 3D World setup: the PC impersonates a Wii 
 - `stop-wiimote-emulator.sh` — stops the custom Bluetooth stack and restores normal Bluetooth.
 - `wiiu-controller` — one-command launcher for the local setup.
 
-## Not included / license note
+## License and third-party code
 
-This repository is MIT-licensed for the code in this repo. It does **not** vendor `WiimoteEmulator` or BlueZ. Those are third-party projects with their own licenses. The scripts expect a patched `WiimoteEmulator` checkout at:
+This repository is distributed under **GPL-2.0-or-later**. See `LICENSE`.
 
-```text
-./WiimoteEmulator
-```
+`WiimoteEmulator/` is vendored because the launcher scripts depend on a locally patched copy. Upstream WiimoteEmulator did not include a top-level license file in the checkout used here, but it includes GPL-2.0-or-later BlueZ-derived code and builds against/downloads BlueZ 4.101, which includes GPL/LGPL components. See `THIRD_PARTY_NOTICES.md` for details.
 
-The current local setup uses a patched WiimoteEmulator to support a MediaTek Bluetooth adapter and modern Linux build quirks. The local patch used during development is included as `patches/wiimoteemulator-local.patch`; it is provided for convenience and remains subject to the upstream WiimoteEmulator/BlueZ licensing context.
+Generated/downloaded build artifacts such as `WiimoteEmulator/bluez-4.101/` and compiled binaries are ignored by git.
 
 ## Build
 

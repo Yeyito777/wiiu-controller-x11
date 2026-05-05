@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 set -euo pipefail
 BASE="$HOME/Workspace/research/wiimote"
 ADDR="${1:-CC:FB:65:AB:45:5A}"

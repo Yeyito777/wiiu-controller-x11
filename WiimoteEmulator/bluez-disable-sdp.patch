@@ -1,0 +1,20 @@
+--- src/main.c	2021-01-29 18:57:36.564328565 +0000
++++ src/main-patched.c	2021-01-28 19:01:42.333153461 +0000
+@@ -522,7 +522,7 @@
+ 		}
+ 	}
+ 
+-	start_sdp_server(mtu, SDP_SERVER_COMPAT);
++	//start_sdp_server(mtu, SDP_SERVER_COMPAT);
+ 
+ 	/* Loading plugins has to be done after D-Bus has been setup since
+ 	 * the plugins might wanna expose some paths on the bus. However the
+@@ -549,7 +549,7 @@
+ 
+ 	plugin_cleanup();
+ 
+-	stop_sdp_server();
++	//stop_sdp_server();
+ 
+ 	agent_exit();
+ 

@@ -1,0 +1,5 @@
+bluez-4.101
+wmemulator
+packedtest
+*.o
+*.so

@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
 set -euo pipefail
 MODE="${1:-socket}"
 cd "$HOME/Workspace/research/wiimote/WiimoteEmulator"

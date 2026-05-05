@@ -145,6 +145,19 @@ index 07ca319..8c22a9e 100644
  {
  	//force Wii pin (bdaddr bytes backwards)
  	//very basic, no filtering, does this for all devices
+diff --git a/build-custom.sh b/build-custom.sh
+index f8106bc..50e6f7b 100644
+--- a/build-custom.sh
++++ b/build-custom.sh
+@@ -7,6 +7,8 @@ rm ./bluez-4.101.tar.xz
+ 
+ # apply patch (to disable sdp server) and build bluez
+ cd bluez-4.101
++grep -q "sys/uio.h" tools/hciattach_tialt.c || sed -i '/#include <sys\/time.h>/i #include <sys/uio.h>' tools/hciattach_tialt.c
++grep -q "sys/uio.h" tools/hciattach_qualcomm.c || sed -i '/#include <sys\/time.h>/i #include <sys/uio.h>' tools/hciattach_qualcomm.c
+ mkdir dist
+ DIST=$(pwd)/dist
+ cp ../bluez-disable-sdp.patch .
 diff --git a/input.c b/input.c
 index d4645d0..a156ba2 100644
 --- a/input.c

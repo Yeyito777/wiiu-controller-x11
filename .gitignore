@@ -2,6 +2,7 @@
 xwiictl
 wiictl
 *.o
+*.so
 
 # Local runtime state/logs/sockets/PIDs
 logs/
@@ -9,8 +10,15 @@ logs/
 *.pid
 *.sock
 
-# Vendored/working third-party checkout (not MIT-licensed here)
-WiimoteEmulator/
+# Generated/downloaded third-party build tree and local binaries
+WiimoteEmulator/.git.local-backup/
+WiimoteEmulator/bluez-4.101/
+WiimoteEmulator/bluez-4.101.tar.xz
+WiimoteEmulator/wmemulator
+WiimoteEmulator/wmmitm
+WiimoteEmulator/packedtest
+WiimoteEmulator/bluez-plugin/*.o
+WiimoteEmulator/bluez-plugin/*.so
 
 # Editor/OS cruft
 .DS_Store
