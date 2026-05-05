@@ -1,0 +1,267 @@
+diff --git a/Makefile b/Makefile
+index 56702e4..6d7f61e 100644
+--- a/Makefile
++++ b/Makefile
+@@ -12,7 +12,7 @@ all: wmemulator packedtest wmmitm
+ clean:
+ 	rm -f wmemulator packedtest wmmitm
+ wmemulator: wmemulator.c wiimote.c input.c motion.c input_sdl.c input_socket.c wm_crypto.c wm_reports.c wm_print.c sdp.c bdaddr.c adapter.c
+-	gcc $(CFLAGS) -o wmemulator wmemulator.c wiimote.c input.c motion.c input_sdl.c input_socket.c wm_crypto.c wm_reports.c wm_print.c sdp.c bdaddr.c adapter.c $(LBLUETOOTH) -lSDL -lpthread -lm $(LDBUS) -Wall
++	gcc $(CFLAGS) -o wmemulator wmemulator.c wiimote.c input.c motion.c input_sdl.c input_socket.c wm_crypto.c wm_reports.c wm_print.c sdp.c bdaddr.c adapter.c $(LBLUETOOTH) `pkg-config --cflags --libs sdl2` -lpthread -lm $(LDBUS) -Wall
+ wmmitm: wmmitm.c wm_print.c sdp.c bdaddr.c adapter.c
+ 	gcc $(CFLAGS) -o wmmitm wmmitm.c wm_print.c sdp.c bdaddr.c adapter.c $(LBLUETOOTH) -lpthread -lm $(LDBUS) -Wall
+ packedtest: packedtest.c
+diff --git a/adapter.c b/adapter.c
+index 677a5ca..658e4b2 100644
+--- a/adapter.c
++++ b/adapter.c
+@@ -169,18 +169,24 @@ int set_up_device_address(int dd, int device_id)
+ 
+   bdaddr_was_set = 1;
+ 
+-  ret = ioctl(dd, HCIDEVDOWN, device_id);
+-  if (ret < 0)
++  /* MediaTek's address override is runtime-only and is lost when the
++   * controller is cycled down/up. Keep it live after the vendor command.
++   */
++  if (ver.manufacturer != 70)
+   {
+-    fprintf(stderr, "Can't down device hci%d: %s (%d)\n",
+-      device_id, strerror(errno), errno);
+-  }
++    ret = ioctl(dd, HCIDEVDOWN, device_id);
++    if (ret < 0)
++    {
++      fprintf(stderr, "Can't down device hci%d: %s (%d)\n",
++        device_id, strerror(errno), errno);
++    }
+ 
+-  ret = ioctl(dd, HCIDEVUP, device_id);
+-  if (ret < 0)
+-  {
+-    fprintf(stderr, "Can't init device hci%d: %s (%d)\n",
+-      device_id, strerror(errno), errno);
++    ret = ioctl(dd, HCIDEVUP, device_id);
++    if (ret < 0)
++    {
++      fprintf(stderr, "Can't init device hci%d: %s (%d)\n",
++        device_id, strerror(errno), errno);
++    }
+   }
+ 
+   return 0;
+@@ -212,18 +218,21 @@ int restore_device_address(int dd, int device_id)
+     return -1;
+   }
+   
+-  ret = ioctl(dd, HCIDEVDOWN, device_id);
+-  if (ret < 0)
++  if (ver.manufacturer != 70)
+   {
+-    fprintf(stderr, "Can't down device hci%d: %s (%d)\n",
+-      device_id, strerror(errno), errno);
+-  }
++    ret = ioctl(dd, HCIDEVDOWN, device_id);
++    if (ret < 0)
++    {
++      fprintf(stderr, "Can't down device hci%d: %s (%d)\n",
++        device_id, strerror(errno), errno);
++    }
+ 
+-  ret = ioctl(dd, HCIDEVUP, device_id);
+-  if (ret < 0)
+-  {
+-    fprintf(stderr, "Can't init device hci%d: %s (%d)\n",
+-      device_id, strerror(errno), errno);
++    ret = ioctl(dd, HCIDEVUP, device_id);
++    if (ret < 0)
++    {
++      fprintf(stderr, "Can't init device hci%d: %s (%d)\n",
++        device_id, strerror(errno), errno);
++    }
+   }
+ 
+   return 0;
+@@ -597,4 +606,4 @@ int find_wiimote(bdaddr_t * out_bdaddr)
+   hci_close_dev(dd);
+ 
+   return 0;
+-}
+\ No newline at end of file
++}
+diff --git a/bdaddr.c b/bdaddr.c
+index ef32b27..055109e 100644
+--- a/bdaddr.c
++++ b/bdaddr.c
+@@ -291,6 +291,21 @@ static int mrvl_write_bd_addr(int dd, bdaddr_t *bdaddr)
+ 	return 0;
+ }
+ 
++#define OCF_MTK_WRITE_BD_ADDR		0x001a
++static int mtk_write_bd_addr(int dd, bdaddr_t *bdaddr)
++{
++	/* MediaTek runtime/public address override. This is temporary: the
++	 * controller returns to its original address after reset/power cycle.
++	 * Full vendor opcode is 0xfc1a: OGF_VENDOR_CMD + OCF 0x001a.
++	 */
++	if (hci_send_cmd(dd, OGF_VENDOR_CMD, OCF_MTK_WRITE_BD_ADDR,
++								sizeof(*bdaddr), bdaddr) < 0)
++		return -1;
++
++	sleep(1);
++	return 0;
++}
++
+ static int st_write_bd_addr(int dd, bdaddr_t *bdaddr)
+ {
+ 	return ericsson_store_in_flash(dd, 0xfe, 6, (uint8_t *) bdaddr);
+@@ -306,10 +321,11 @@ static struct {
+ 	{ 13,		ti_write_bd_addr,	NULL			},
+ 	{ 15,		bcm_write_bd_addr,	generic_reset_device	},
+ 	{ 18,		zeevo_write_bd_addr,	NULL			},
+-	{ 48,		st_write_bd_addr,	generic_reset_device	},
+-	{ 57,		ericsson_write_bd_addr,	generic_reset_device	},
+-	{ 72,		mrvl_write_bd_addr,	generic_reset_device	},
+-	{ 305,	bcm_write_bd_addr,	generic_reset_device	},
++		{ 48,		st_write_bd_addr,	generic_reset_device	},
++		{ 57,		ericsson_write_bd_addr,	generic_reset_device	},
++		{ 70,		mtk_write_bd_addr,	generic_reset_device	},
++		{ 72,		mrvl_write_bd_addr,	generic_reset_device	},
++		{ 305,	bcm_write_bd_addr,	generic_reset_device	},
+ 	{ 65535,	NULL,			NULL			},
+ };
+ 
+diff --git a/bluez-plugin/wmemu.c b/bluez-plugin/wmemu.c
+index 07ca319..8c22a9e 100644
+--- a/bluez-plugin/wmemu.c
++++ b/bluez-plugin/wmemu.c
+@@ -13,8 +13,7 @@
+ #include "src/log.h"
+ 
+ static ssize_t wmemu_pincb(struct btd_adapter *adapter, struct btd_device *device,
+-						char *pinbuf, bool *display,
+-						unsigned int attempt)
++							char *pinbuf, gboolean *display)
+ {
+ 	//force Wii pin (bdaddr bytes backwards)
+ 	//very basic, no filtering, does this for all devices
+diff --git a/input.c b/input.c
+index d4645d0..a156ba2 100644
+--- a/input.c
++++ b/input.c
+@@ -1,6 +1,6 @@
+ #include "input.h"
+ 
+-#include "SDL/SDL.h"
++#include <stdio.h>
+ #include <math.h>
+ #include "motion.h"
+ 
+diff --git a/input_sdl.c b/input_sdl.c
+index 6b39d42..dd75fa3 100644
+--- a/input_sdl.c
++++ b/input_sdl.c
+@@ -1,14 +1,23 @@
+ #include "input_sdl.h"
+-#include "SDL/SDL.h"
++#include "SDL2/SDL.h"
++
++static SDL_Window *window;
+ 
+ void input_sdl_init(void)
+ {
+-  if (SDL_Init(0) < 0)
++  if (SDL_Init(SDL_INIT_VIDEO) < 0)
+   {
+     printf("Could not initialize SDL: %s\n", SDL_GetError());
+     exit(1);
+   }
+-  SDL_SetVideoMode(128, 128, 0, 0);
++  window = SDL_CreateWindow("WiimoteEmulator",
++                            SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED,
++                            128, 128, 0);
++  if (window == NULL)
++  {
++    printf("Could not create SDL window: %s\n", SDL_GetError());
++    exit(1);
++  }
+   printf("Commands overview\n"
+          "-----------------\n"
+          "                 __ arrows use keypad numbers!\n"
+@@ -39,6 +48,11 @@ void input_sdl_init(void)
+ 
+ static void input_sdl_unload(void)
+ {
++  if (window != NULL)
++  {
++    SDL_DestroyWindow(window);
++    window = NULL;
++  }
+   SDL_Quit();
+ }
+ 
+@@ -245,7 +259,7 @@ static bool input_sdl_poll_event(struct input_event *out_event)
+     case SDLK_h:
+       out_event->button_event.button = INPUT_BUTTON_HOME;
+       break;
+-    case SDLK_KP8:
++    case SDLK_KP_8:
+       if (arrow_function == 2)
+       {
+         out_event->button_event.button = INPUT_BUTTON_CLASSIC_UP;
+@@ -255,7 +269,7 @@ static bool input_sdl_poll_event(struct input_event *out_event)
+         out_event->button_event.button = INPUT_BUTTON_WIIMOTE_UP;
+       }
+       break;
+-    case SDLK_KP2:
++    case SDLK_KP_2:
+       if (arrow_function == 2)
+       {
+         out_event->button_event.button = INPUT_BUTTON_CLASSIC_DOWN;
+@@ -265,7 +279,7 @@ static bool input_sdl_poll_event(struct input_event *out_event)
+         out_event->button_event.button = INPUT_BUTTON_WIIMOTE_DOWN;
+       }
+       break;
+-    case SDLK_KP4:
++    case SDLK_KP_4:
+       if (arrow_function == 2)
+       {
+         out_event->button_event.button = INPUT_BUTTON_CLASSIC_LEFT;
+@@ -275,7 +289,7 @@ static bool input_sdl_poll_event(struct input_event *out_event)
+         out_event->button_event.button = INPUT_BUTTON_WIIMOTE_LEFT;
+       }
+       break;
+-    case SDLK_KP6:
++    case SDLK_KP_6:
+       if (arrow_function == 2)
+       {
+         out_event->button_event.button = INPUT_BUTTON_CLASSIC_RIGHT;
+@@ -390,4 +404,4 @@ static bool input_sdl_poll_event(struct input_event *out_event)
+ struct input_source input_source_sdl = {
+   .unload = input_sdl_unload,
+   .poll_event = input_sdl_poll_event
+-};
+\ No newline at end of file
++};
+diff --git a/wmemulator.c b/wmemulator.c
+index 98efaab..b08f6c8 100644
+--- a/wmemulator.c
++++ b/wmemulator.c
+@@ -212,6 +212,12 @@ void disconnect()
+   int_fd = 0;
+ }
+ 
++void graceful_disconnect(const bdaddr_t * host_bdaddr)
++{
++  (void)host_bdaddr;
++  disconnect();
++}
++
+ void print_usage(char *argv0)
+ {
+   printf("usage: %s [ <wii-bdaddr> [ gui | unix <path> | ip <port> ] ]\n", argv0);
+@@ -500,4 +506,3 @@ int main(int argc, char *argv[])
+ 
+   return 0;
+ }
+-

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+BASE="$HOME/Workspace/research/wiimote"
+ADDR="${1:-CC:FB:65:AB:45:5A}"
+SOCK="$BASE/logs/wmemu.sock"
+cd "$BASE"
+if ! pgrep -f "bluez-4.101/dist/sbin/bluetoothd" >/dev/null; then
+  "$BASE/start-wiimote-emulator.sh" socket
+  sleep 2
+fi
+"$BASE/restart-socket-controller.sh" "$ADDR"
+sleep 1
+exec "$BASE/xwiictl" "$SOCK"

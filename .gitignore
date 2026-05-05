@@ -1,0 +1,18 @@
+# Build outputs
+xwiictl
+wiictl
+*.o
+
+# Local runtime state/logs/sockets/PIDs
+logs/
+*.log
+*.pid
+*.sock
+
+# Vendored/working third-party checkout (not MIT-licensed here)
+WiimoteEmulator/
+
+# Editor/OS cruft
+.DS_Store
+*.swp
+*~
